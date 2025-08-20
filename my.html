@@ -1,72 +1,161 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>✨ Переливающиеся блёстки</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>✨ Фиолетовый фон с золотыми блёстками</title>
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background: #0a0e23;
-        }
-        canvas {
-            display: block;
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; width: 100vw; height: 100vh; }
+        #recordBtn {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
     <canvas id="glitterCanvas"></canvas>
-
+    <button id="recordBtn">Начать запись</button>
     <script>
         const canvas = document.getElementById('glitterCanvas');
         const ctx = canvas.getContext('2d');
+        const recordBtn = document.getElementById('recordBtn');
 
-        // Настройки
         const settings = {
-            particleCount: 500.,   // Количество блёсток
-            maxSize: 4,           // Максимальный размер
-            minSize: 1,           // Минимальный размер
-            speed: 0.5,          // Скорость падения
-            sway: 0.1,           // Колебание в стороны
-            blur: 4,             // Размытие
-            colors: [             // Цвета блёсток (переливы)
-                '#ff3366', '#66ff33', '#3399ff', 
-                '#ffcc00', '#ff00ff', '#00ffff'
-            ]
+            particleCount: 500,
+            minSize: 5,
+            maxSize: 50,
+            minSpeed: 0.01,
+            maxSpeed: 1,
+            sway: 3,
+            blur: 0,
+            glitterColors: [
+                '#FFFF00',
+                '#F5BD02',
+                '#E6C200',
+                '#D4AF37',
+                '#CFB53B',
+                '#C5B358',
+                '#DAA520',
+                '#FFDFF0'
+            ],
+            bgColors: [
+                '#6A3B72',
+                '#740023',
+                '#69226C',
+                '#4A1513',
+                '#7A1056',
+                '#5e020e',
+                '#9e024e',
+                '#56168a',
+                '#000000'
+            ],
+            MaxParticleLifetime: 300,
+            MinParticleLifetime: 10,
+            fadeInOut: 1
         };
 
-        // Базовый тёмно-синий фон
-        const bgColor = '#0a0e23';
-
-        // Инициализация блёсток
+        let bgAnimationTime = 10;
         const particles = [];
-        for (let i = 0; i < settings.particleCount; i++) {
+
+        let lastDpr = window.devicePixelRatio || 1;
+
+        function initParticles() {
+            particles.length = 0;
+            for (let i = 0; i < settings.particleCount; i++) {
+                createParticle(true);
+            }
+        }
+
+        function createParticle(fadeIn = false) {
+            let size = Math.random() * (settings.maxSize - settings.minSize) + settings.minSize;
             particles.push({
-                x: Math.random() * canvas.width *2,
-                y: Math.random() * canvas.height * 2,
-                size: Math.random() * (settings.maxSize - settings.minSize) + settings.minSize,
-                speedY: Math.random() * settings.speed + 0.1,
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: size,
+                speedY: (Math.random() * (settings.maxSpeed - settings.minSpeed) + settings.minSpeed) + (-size * 0.1),
                 speedX: (Math.random() - 0.5) * settings.sway,
-                color: settings.colors[Math.floor(Math.random() * settings.colors.length)],
+                color: settings.glitterColors[Math.floor(Math.random() * settings.glitterColors.length)],
                 angle: Math.random() * Math.PI * 2,
-                spin: (Math.random() - 0.5) * 0.02
+                spin: (Math.random() - 0.5) * 0.01,
+                life: Math.random() * (settings.MaxParticleLifetime - settings.MinParticleLifetime) + settings.MinParticleLifetime,
+                alpha: fadeIn ? 0 : 1,
+                isDying: false
             });
         }
 
-        // Анимация
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+        function lerpColor(a, b, t) {
+            const ah = parseInt(a.replace(/#/g, ''), 16);
+            const ar = (ah >> 16) & 0xff;
+            const ag = (ah >> 8) & 0xff;
+            const ab = ah & 0xff;
+            const bh = parseInt(b.replace(/#/g, ''), 16);
+            const br = (bh >> 16) & 0xff;
+            const bg = (bh >> 8) & 0xff;
+            const bb = bh & 0xff;
+            const rr = ar + t * (br - ar);
+            const rg = ag + t * (bg - ag);
+            const rb = ab + t * (bb - ab);
+            return `rgb(${rr | 0}, ${rg | 0}, ${rb | 0})`;
+        }
+
+        function drawBackground() {
+            bgAnimationTime += 0.001;
+            const colorsCount = settings.bgColors.length;
+            const position1 = (Math.sin(bgAnimationTime) + 1) / 2 * (colorsCount - 1);
+            const index1 = Math.floor(position1);
+            const t1 = position1 - index1;
+            const position2 = (Math.cos(bgAnimationTime * 0.8) + 1) / 2 * (colorsCount - 1);
+            const index2 = Math.floor(position2);
+            const t2 = position2 - index2;
+
+            const color1 = lerpColor(settings.bgColors[index1], settings.bgColors[(index1 + 1) % colorsCount], t1);
+            const color2 = lerpColor(settings.bgColors[index2], settings.bgColors[(index2 + 1) % colorsCount], t2);
+            const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            gradient.addColorStop(0, color1);
+            gradient.addColorStop(1, color2);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.globalCompositeOperation = 'overlay';
+            for (let i = 0; i < 20; i++) {
+                const x = Math.sin(bgAnimationTime * 0.2 + i * 2) * canvas.width * 0.3 + canvas.width / 2;
+                const y = Math.cos(bgAnimationTime * 0.4 + i) * canvas.height * 0.3 + canvas.height / 2;
+                const radius = canvas.width * 0.2;
+                const grd = ctx.createRadialGradient(x, y, 0, x, y, radius);
+                grd.addColorStop(0, `hsla(${270 + Math.sin(bgAnimationTime) * 30}, 70%, 50%, 0.05)`);
+                grd.addColorStop(1, 'hsla(0, 0%, 0%, 0)');
+                ctx.fillStyle = grd;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+            ctx.globalCompositeOperation = 'source-over';
         }
 
         function updateParticles() {
-            for (let p of particles) {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                if (p.alpha < 1 && !p.isDying) {
+                    p.alpha += 0.005;
+                }
+                p.x += p.speedX;
                 p.y += p.speedY;
-                p.x += p.speedX + Math.sin(p.angle) * 0.2;
                 p.angle += p.spin;
-
-                // Возвращаем улетевшие блёстки наверх
+                p.life--;
+                if (p.life <= settings.fadeInOut && !p.isDying) {
+                    p.isDying = true;
+                }
+                if (p.isDying) {
+                    p.alpha -= 0.02;
+                    if (p.alpha <= 0) {
+                        particles.splice(i, 1);
+                        createParticle(true);
+                        continue;
+                    }
+                }
                 if (p.y > canvas.height + p.size) {
                     p.y = -p.size;
                     p.x = Math.random() * canvas.width;
@@ -77,41 +166,104 @@
         }
 
         function drawParticles() {
-            // Очистка и фон
-            ctx.fillStyle = bgColor;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Рисуем блёстки с размытием
             ctx.shadowBlur = settings.blur;
-            for (let p of particles) {
+            for (const p of particles) {
                 ctx.save();
                 ctx.translate(p.x, p.y);
                 ctx.rotate(p.angle);
+                ctx.globalAlpha = p.alpha;
 
-                // Градиент для переливов
                 const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, p.size);
                 gradient.addColorStop(0, p.color);
-                gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-
+                gradient.addColorStop(1, 'rgba(255, 100, 255, 0)');
                 ctx.fillStyle = gradient;
                 ctx.shadowColor = p.color;
                 ctx.beginPath();
                 ctx.arc(0, 0, p.size, 0, Math.PI * 2);
                 ctx.fill();
+
+                ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha * 0.1})`;
+                ctx.beginPath();
+                ctx.arc(-p.size * 0.2, -p.size * 0.1, p.size * 0.2, 0, Math.PI * 2);
+                ctx.fill();
                 ctx.restore();
+            }
+            ctx.shadowBlur = 0;
+        }
+
+        function resizeCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            // Масштабируем canvas под реальное разрешение:
+            canvas.width = window.innerWidth * dpr;
+            canvas.height = window.innerHeight * dpr;
+            canvas.style.width = window.innerWidth + 'px';
+            canvas.style.height = window.innerHeight + 'px';
+
+            // Сбрасываем трансформацию и применяем масштабирование
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.scale(dpr, dpr);
+
+            // Масштабируем частицы в зависимости от изменения dpr
+            if (lastDpr !== dpr) {
+                for (const p of particles) {
+                    p.x = p.x / lastDpr * dpr;
+                    p.y = p.y / lastDpr * dpr;
+                    p.size = p.size / lastDpr * dpr;
+                }
+                lastDpr = dpr;
             }
         }
 
         function animate() {
+            drawBackground();
             updateParticles();
             drawParticles();
             requestAnimationFrame(animate);
         }
 
-        // Запуск
+        // Запись видео
+        let mediaRecorder;
+        let recordedChunks = [];
+        let recording = false;
+
+        recordBtn.addEventListener('click', () => {
+            if (!recording) {
+                recordedChunks = [];
+                // Захват с 30 FPS
+                const stream = canvas.captureStream(30);
+                mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
+                mediaRecorder.ondataavailable = e => {
+                    if (e.data.size > 0) recordedChunks.push(e.data);
+                };
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = 'animation.webm';
+                    document.body.appendChild(a);
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    a.remove();
+                };
+                mediaRecorder.start();
+                recordBtn.textContent = 'Остановить запись';
+                recording = true;
+            } else {
+                mediaRecorder.stop();
+                recordBtn.textContent = 'Начать запись';
+                recording = false;
+            }
+        });
+
         window.addEventListener('resize', resizeCanvas);
+
+        // Инициализация
         resizeCanvas();
+        initParticles();
         animate();
     </script>
 </body>
 </html>
+
