@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✨ Переливающиеся блёстки</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #0a0e23;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="glitterCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('glitterCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Настройки
+        const settings = {
+            particleCount: 500.,   // Количество блёсток
+            maxSize: 4,           // Максимальный размер
+            minSize: 1,           // Минимальный размер
+            speed: 0.5,          // Скорость падения
+            sway: 0.1,           // Колебание в стороны
+            blur: 4,             // Размытие
+            colors: [             // Цвета блёсток (переливы)
+                '#ff3366', '#66ff33', '#3399ff', 
+                '#ffcc00', '#ff00ff', '#00ffff'
+            ]
+        };
+
+        // Базовый тёмно-синий фон
+        const bgColor = '#0a0e23';
+
+        // Инициализация блёсток
+        const particles = [];
+        for (let i = 0; i < settings.particleCount; i++) {
+            particles.push({
+                x: Math.random() * canvas.width *2,
+                y: Math.random() * canvas.height * 2,
+                size: Math.random() * (settings.maxSize - settings.minSize) + settings.minSize,
+                speedY: Math.random() * settings.speed + 0.1,
+                speedX: (Math.random() - 0.5) * settings.sway,
+                color: settings.colors[Math.floor(Math.random() * settings.colors.length)],
+                angle: Math.random() * Math.PI * 2,
+                spin: (Math.random() - 0.5) * 0.02
+            });
+        }
+
+        // Анимация
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        function updateParticles() {
+            for (let p of particles) {
+                p.y += p.speedY;
+                p.x += p.speedX + Math.sin(p.angle) * 0.2;
+                p.angle += p.spin;
+
+                // Возвращаем улетевшие блёстки наверх
+                if (p.y > canvas.height + p.size) {
+                    p.y = -p.size;
+                    p.x = Math.random() * canvas.width;
+                }
+                if (p.x > canvas.width + p.size) p.x = -p.size;
+                if (p.x < -p.size) p.x = canvas.width + p.size;
+            }
+        }
+
+        function drawParticles() {
+            // Очистка и фон
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Рисуем блёстки с размытием
+            ctx.shadowBlur = settings.blur;
+            for (let p of particles) {
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.angle);
+
+                // Градиент для переливов
+                const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, p.size);
+                gradient.addColorStop(0, p.color);
+                gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+                ctx.fillStyle = gradient;
+                ctx.shadowColor = p.color;
+                ctx.beginPath();
+                ctx.arc(0, 0, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function animate() {
+            updateParticles();
+            drawParticles();
+            requestAnimationFrame(animate);
+        }
+
+        // Запуск
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        animate();
+    </script>
+</body>
+</html>
